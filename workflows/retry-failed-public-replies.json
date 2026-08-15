@@ -1,0 +1,220 @@
+{
+  "name": "Retry Failed Public Replies (Instagram)",
+  "nodes": [
+    {
+      "id": "5bcc3b34-fb55-4386-bf49-b0c25832180c",
+      "name": "Sticky - About This Workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        -320
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 300,
+        "content": "## Retry Failed Public Replies\n\nCompanion workflow to \"Instagram Comment Automation\". It NEVER re-sends the private DM -\nit only retries the public /replies call for comments where the DM already succeeded but\nthe public reply did not (dm_status = 'sent' AND public_reply_status = 'failed').\n\nReuses the previously selected_public_reply text (does not re-randomize) for a consistent audit trail.\n\nRequires the same INSTAGRAM_ACCESS_TOKEN env var and Postgres credential as the main workflow."
+      }
+    },
+    {
+      "id": "40d36ae2-1156-4f8e-8e7b-865147450220",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -620,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "notes": "Adjust the interval to your needs, or trigger manually while testing."
+    },
+    {
+      "id": "67b3c585-1bfd-4f5c-bd3c-083396ae497b",
+      "name": "Manual Trigger (for testing)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        180
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "fcaf7fd0-3aa6-458c-bbd9-deadf64be968",
+      "name": "Find Failed Public Replies",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -360,
+        90
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT comment_id, selected_public_reply\nFROM ig_processed_comments\nWHERE dm_status = 'sent' AND public_reply_status = 'failed';",
+        "options": {}
+      }
+    },
+    {
+      "id": "36edfb88-8e2e-4608-92eb-509492bae2b5",
+      "name": "Retry Reply to Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -100,
+        90
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v23.0/{{$json.comment_id}}/replies",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.INSTAGRAM_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { message: $json.selected_public_reply } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      "notes": "Same endpoint as the main workflow's \"Reply to Comment\" node: POST /{ig-comment-id}/replies."
+    },
+    {
+      "id": "97f2d6de-0e31-4861-8e52-c389df55d632",
+      "name": "Update Row - Retry Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        160,
+        20
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ig_processed_comments\nSET public_reply_status = 'sent', status = 'done', processed_at = now()\nWHERE comment_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id] }}"
+        }
+      }
+    },
+    {
+      "id": "2ea56838-2706-4dd1-b2be-9535919da659",
+      "name": "Classify Retry Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        200
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const err = $json.error || {};\nconst message = (err.message || JSON.stringify(err)).toString().slice(0, 500);\nreturn { json: { ...$json, retry_error_message: message } };"
+      }
+    },
+    {
+      "id": "5f088f2d-b67f-4ed5-9849-30eae3526801",
+      "name": "Update Row - Still Failing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        400,
+        200
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ig_processed_comments\nSET error_message = $2, processed_at = now()\nWHERE comment_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.retry_error_message] }}"
+        }
+      },
+      "notes": "public_reply_status stays 'failed' so the next scheduled run picks it up again."
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Find Failed Public Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger (for testing)": {
+      "main": [
+        [
+          {
+            "node": "Find Failed Public Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Failed Public Replies": {
+      "main": [
+        [
+          {
+            "node": "Retry Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Reply to Comment": {
+      "main": [
+        [
+          {
+            "node": "Update Row - Retry Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classify Retry Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Retry Error": {
+      "main": [
+        [
+          {
+            "node": "Update Row - Still Failing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
