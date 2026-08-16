@@ -2,7 +2,7 @@
   "name": "Instagram Comment Automation - Private Reply + Public Reply",
   "nodes": [
     {
-      "id": "53ccf502-97f3-4946-8867-89cb852a908f",
+      "id": "581e912c-8ac1-4249-a32f-49e0c11fe29c",
       "name": "Sticky - Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -17,7 +17,7 @@
       }
     },
     {
-      "id": "56260e7b-a0fe-4752-98d3-4ccfbe196208",
+      "id": "f43906c3-21a4-4bd0-a817-b89d02430bb2",
       "name": "Sticky - Retry Design",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -32,7 +32,7 @@
       }
     },
     {
-      "id": "c68e245f-fbd8-4cc4-955f-e60b91b3ff58",
+      "id": "807019f3-419c-4f07-bd8b-66f8472905ff",
       "name": "Instagram Webhook Verify (GET)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -49,7 +49,7 @@
       "notes": "Meta calls this once when you save the webhook subscription in the App Dashboard."
     },
     {
-      "id": "f94ea01c-46dc-4a8f-b0b5-6376f315cbb6",
+      "id": "42463108-a472-42e0-8d79-e324dd78e8b3",
       "name": "Verify Meta Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -63,7 +63,7 @@
       }
     },
     {
-      "id": "3e0a5c9b-0152-4044-bc07-587e946cd682",
+      "id": "dbb5ecbb-34f1-4fe0-a557-2c544ca58742",
       "name": "Verified?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -90,7 +90,7 @@
       }
     },
     {
-      "id": "67123524-51dc-404c-b04d-ef4d2ff07b10",
+      "id": "1e4c3c9d-56e6-4572-a5e0-3614ec95a4b7",
       "name": "Respond OK - Return Challenge",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "74f1b160-40d2-4c81-9b7f-b90152d29ec7",
+      "id": "c12b3e78-2a45-4e9d-9416-4837583ed9b7",
       "name": "Respond Forbidden",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
@@ -124,7 +124,7 @@
       }
     },
     {
-      "id": "e31ee2a8-c627-41b9-a3e1-0eb69872eb48",
+      "id": "850b5a89-75cd-4074-8923-f23453cb7362",
       "name": "Instagram Webhook Events (POST)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -144,7 +144,7 @@
       "notes": "Responds 200 immediately (Meta requires a fast ack) then keeps processing below."
     },
     {
-      "id": "6732255b-0374-4475-ac05-7ddf952f4837",
+      "id": "0e6e4705-d00a-43ed-bd04-45bf927b380e",
       "name": "Extract Comment Events",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -159,7 +159,7 @@
       "notes": "Ignores non-\"comments\" fields (e.g. mentions, live_comments). Splits a batched Meta payload into one item per comment."
     },
     {
-      "id": "e3258a35-ccc2-4235-9f32-96e1e8212ad0",
+      "id": "8c39514d-b168-46ca-90ef-5d2026c29ca4",
       "name": "Validate Event",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -193,7 +193,7 @@
       }
     },
     {
-      "id": "75fe6434-d697-44aa-a3fa-87ef1ae84491",
+      "id": "8159661e-9a74-4860-a5e6-839c858d0451",
       "name": "Ignore - Invalid Event",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
@@ -205,7 +205,7 @@
       "notes": "Status: comment ignored (malformed payload - missing comment_id or media_id)."
     },
     {
-      "id": "5c3c653b-0331-4662-89fe-7a04e567d963",
+      "id": "61b81b85-e142-4a79-87cf-40d2efd9b06f",
       "name": "Ignore Own Comments",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -232,7 +232,7 @@
       "notes": "Also prevents infinite loops: our own public replies re-appear as new comments, but from_id will match our account."
     },
     {
-      "id": "9ee26f8f-dc4c-4bbd-9931-f439e9daf480",
+      "id": "d12d86ae-10ee-4210-aec1-0eac47ae5667",
       "name": "Ignore - Own Comment",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
@@ -244,7 +244,7 @@
       "notes": "Status: comment ignored (posted by our own Instagram account)."
     },
     {
-      "id": "635967a1-6b5b-4257-8f79-48bb6cd354f2",
+      "id": "67830697-ad1f-46b8-af3a-07a60ed65c3d",
       "name": "Reserve Comment (Atomic)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -254,30 +254,15 @@
       ],
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO ig_processed_comments (comment_id, media_id, comment_text, username, created_at)\nVALUES ($1, $2, $3, $4, now())\nON CONFLICT (comment_id) DO NOTHING\nRETURNING comment_id;",
+        "query": "INSERT INTO ig_processed_comments (comment_id, media_id, comment_text, username, created_at)\nVALUES ($1, $2, $3, $4, now())\nON CONFLICT (comment_id) DO NOTHING\nRETURNING comment_id, media_id, comment_text, username;",
         "options": {
           "queryReplacement": "={{ [$json.comment_id, $json.media_id, $json.comment_text, $json.username] }}"
         }
       },
-      "notes": "Atomic dedup+reservation in a single statement. If the comment_id already exists, 0 rows are returned and nothing flows downstream for this item - no separate \"Check Duplicate\" step needed (that would not be atomic under concurrent executions)."
+      "notes": "Atomic dedup+reservation in a single statement. If the comment_id already exists, 0 rows are returned and nothing flows downstream for this item - no separate \"Check Duplicate\" step needed (that would not be atomic under concurrent executions). RETURNING deliberately echoes back every column downstream nodes need, so nothing has to be re-fetched from an earlier node by reference (Postgres executeQuery does not reliably keep pairedItem links for RETURNING rows)."
     },
     {
-      "id": "4ba82534-1bbd-4321-9d5a-bedcf06308e6",
-      "name": "Merge Event Data Back In",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        820,
-        180
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const original = $('Ignore Own Comments').item.json;\nreturn { json: { ...original, reserved: true } };"
-      },
-      "notes": "The Postgres RETURNING clause only exposes comment_id, so we pull the rest of the event fields back in from the earlier node by reference."
-    },
-    {
-      "id": "884a815f-6221-4416-bc2d-a17650c01fee",
+      "id": "5e3fdc6e-13b5-45f3-801c-582dc4ab1e6a",
       "name": "Normalize Comment Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -291,7 +276,7 @@
       }
     },
     {
-      "id": "bcf1484b-84c2-4c98-a8cb-9a6a91bc53d5",
+      "id": "3bd31e61-499f-4183-b6e7-84d693cfc49d",
       "name": "Message Rules Configuration",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -306,7 +291,7 @@
       "notes": "EDIT ME: this is the single place to add keywords, reorder rule priority, edit DM texts and the generic fallback."
     },
     {
-      "id": "1a85d920-df62-4fc2-811a-c7e2f76690b7",
+      "id": "f1afd336-459d-4803-94c5-b50883536634",
       "name": "Match Keyword Rule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -320,7 +305,7 @@
       }
     },
     {
-      "id": "c22269ec-1453-460f-90b3-c5e5ce9704b6",
+      "id": "ff87834f-69f8-405f-b443-5cc1d16ad0ca",
       "name": "Select Random DM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -334,7 +319,7 @@
       }
     },
     {
-      "id": "3e5e4b4a-0561-4ec0-937c-0ee0dc87528a",
+      "id": "961117d7-5da9-46a5-8498-dd7360d1b97f",
       "name": "Send Private Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -344,7 +329,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v23.0/{{$env.INSTAGRAM_USER_ID}}/messages",
+        "url": "=https://graph.instagram.com/v26.0/{{$env.INSTAGRAM_USER_ID}}/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -369,7 +354,7 @@
       "notes": "POST /{ig-user-id}/messages - https://developers.facebook.com/docs/instagram-platform/private-replies/. One private reply per comment_id max (Meta hard limit) - do not call this twice for the same comment_id."
     },
     {
-      "id": "0432b5c0-1e7d-497c-be2e-f076bdb397a9",
+      "id": "52c81ad8-2418-49f9-8ebe-85637e25b8c3",
       "name": "Record DM Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -383,7 +368,7 @@
       }
     },
     {
-      "id": "961cee04-14af-48e2-ac14-5922eb01b083",
+      "id": "50f99d65-afb6-4427-a91d-ade2d5aa9b08",
       "name": "Update Row - DM Sent",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -400,7 +385,7 @@
       }
     },
     {
-      "id": "3ae64a6a-b29e-43a0-be95-57e312ab5e4c",
+      "id": "482fd93f-22af-4d8a-9eef-bf91b63ac31d",
       "name": "Classify DM Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -414,7 +399,7 @@
       }
     },
     {
-      "id": "4bba1468-71fc-45f3-867e-77e6233919bb",
+      "id": "8a17fc8b-f1c7-4f15-a21c-bc99eddcb9c2",
       "name": "Retry DM?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -441,7 +426,7 @@
       }
     },
     {
-      "id": "383081f9-e7ad-4049-b084-06304e89d6b8",
+      "id": "41fbdd35-35e0-4f88-9863-1ad29d0f9178",
       "name": "Wait Before DM Retry",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -455,7 +440,7 @@
       }
     },
     {
-      "id": "e39d3679-db97-4491-856e-0af012748e5c",
+      "id": "ed5d259a-5ab7-4404-a3bd-22d19d6a0c5a",
       "name": "Mark DM Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -469,7 +454,7 @@
       }
     },
     {
-      "id": "41c291bc-ffdc-42c8-b817-bbbd6f2b78a7",
+      "id": "70b90270-3903-4fc5-a11f-4667c8f97eff",
       "name": "Update Row - DM Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -487,7 +472,7 @@
       "notes": "Status: DM echoue - reponse publique volontairement non envoyee."
     },
     {
-      "id": "c41bfebd-545c-45ab-9d4d-62b0a138467b",
+      "id": "22b5f17d-87e2-4572-9c1d-11150418db33",
       "name": "Public Replies Configuration",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -502,7 +487,7 @@
       "notes": "EDIT ME: the list of possible public replies lives only here."
     },
     {
-      "id": "8ac647c3-339e-4026-855e-1966ddcae497",
+      "id": "fd95c7f8-c859-49d0-a20e-b715e2f3fe8b",
       "name": "Select Random Public Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -516,7 +501,7 @@
       }
     },
     {
-      "id": "20fc42f0-15fe-4a65-bfaf-e1348f0af48e",
+      "id": "3427af8b-b166-4066-8899-a14d9f7b398d",
       "name": "Reply to Comment",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -526,7 +511,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v23.0/{{$json.comment_id}}/replies",
+        "url": "=https://graph.instagram.com/v26.0/{{$json.comment_id}}/replies",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -551,7 +536,7 @@
       "notes": "POST /{ig-comment-id}/replies - https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-comment/replies/. Only run once the private reply above has actually succeeded."
     },
     {
-      "id": "a2627173-f8ae-4948-a1b1-af902ce9a82e",
+      "id": "57c02225-2437-47c8-b19c-18c9f0cf52d6",
       "name": "Record Public Reply Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -565,7 +550,7 @@
       }
     },
     {
-      "id": "5a304ebf-03e1-4c51-927d-11412c60810d",
+      "id": "da7921e7-68b2-4e02-9eb6-591c21eb0fd5",
       "name": "Save Success",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -583,7 +568,7 @@
       "notes": "Status: DM envoye, reponse publique envoyee."
     },
     {
-      "id": "be469393-88ff-4f73-b86c-7bff02ca9af4",
+      "id": "b0b9579c-e202-4cb7-8151-06ac1df8f79b",
       "name": "Classify Public Reply Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -597,7 +582,7 @@
       }
     },
     {
-      "id": "9db6e793-bdf6-41ff-9fba-0157910ec3ad",
+      "id": "7805ee07-832c-4294-b351-7048b88b71b5",
       "name": "Retry Public Reply?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -624,7 +609,7 @@
       }
     },
     {
-      "id": "5e459ef1-aa33-4ce9-9501-d47cac93c452",
+      "id": "5598c31c-0a2e-4e79-b81e-da48fc99c645",
       "name": "Wait Before Public Reply Retry",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -638,7 +623,7 @@
       }
     },
     {
-      "id": "91a6de56-12e8-4ab1-b5cd-133434f64c20",
+      "id": "3151bc0e-56f4-4f48-b183-3aa6008d9fdf",
       "name": "Mark Public Reply Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -652,7 +637,7 @@
       }
     },
     {
-      "id": "32207a8a-814a-4bf9-82f8-a37f3720f22d",
+      "id": "f788494d-8106-4037-9ef4-1be354b1d0cf",
       "name": "Update Row - Public Reply Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -670,7 +655,7 @@
       "notes": "Status: DM envoye, reponse publique echouee. Utiliser le workflow \"Retry Failed Public Replies\" pour reessayer uniquement cette etape."
     },
     {
-      "id": "ab4cb6dc-6e9c-4be6-8a99-920857e36035",
+      "id": "8b5514fe-1b1f-4bcb-80fb-1fddffca2c9d",
       "name": "Handle Error",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
@@ -782,17 +767,6 @@
       ]
     },
     "Reserve Comment (Atomic)": {
-      "main": [
-        [
-          {
-            "node": "Merge Event Data Back In",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge Event Data Back In": {
       "main": [
         [
           {
