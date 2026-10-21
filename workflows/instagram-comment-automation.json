@@ -2,75 +2,66 @@
   "name": "Instagram Comment Automation - Private Reply + Public Reply",
   "nodes": [
     {
-      "id": "581e912c-8ac1-4249-a32f-49e0c11fe29c",
+      "parameters": {
+        "content": "## Instagram Comment Automation\n\nGraph API version: **v23.0** (verify against https://developers.facebook.com/docs/graph-api/changelog and bump the `graphApiVersion` value used in the HTTP Request nodes if a newer version is required).\n\nEnv vars required (see README.md):\n- INSTAGRAM_ACCESS_TOKEN\n- INSTAGRAM_USER_ID\n- INSTAGRAM_VERIFY_TOKEN\n\nCredentials required: one **Postgres** credential (left unassigned on import — configure it on every Postgres node after import).\n\nThis workflow does NOT verify the X-Hub-Signature-256 header. See README \"Hardening\" section for how to add that check for your n8n version.",
+        "height": 460,
+        "width": 560
+      },
+      "id": "9ede134a-8c58-4a8a-a940-3b2743d533bd",
       "name": "Sticky - Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -620,
-        -520
-      ],
-      "parameters": {
-        "width": 560,
-        "height": 460,
-        "content": "## Instagram Comment Automation\n\nGraph API version: **v23.0** (verify against https://developers.facebook.com/docs/graph-api/changelog and bump the `graphApiVersion` value used in the HTTP Request nodes if a newer version is required).\n\nEnv vars required (see README.md):\n- INSTAGRAM_ACCESS_TOKEN\n- INSTAGRAM_USER_ID\n- INSTAGRAM_VERIFY_TOKEN\n\nCredentials required: one **Postgres** credential (left unassigned on import — configure it on every Postgres node after import).\n\nThis workflow does NOT verify the X-Hub-Signature-256 header. See README \"Hardening\" section for how to add that check for your n8n version."
-      }
+        0,
+        0
+      ]
     },
     {
-      "id": "f43906c3-21a4-4bd0-a817-b89d02430bb2",
+      "parameters": {
+        "content": "## Retry design\n\nEach Meta call (Send Private Reply / Reply to Comment) uses onError = \"continue using error output\".\nThe Classify-Error Code node reads the status code defensively from several possible property paths\n(error.httpCode / error.statusCode / error.cause.httpCode) because the exact shape can vary slightly\nacross n8n versions. **Verify this against your instance during the Testing Protocol step in the README\nand adjust the property path if the classification never matches.**\n\n429 / 500 / 502 / 503 / 504 -> retry (max 3 attempts, Retry-After header honoured, else exponential backoff)\n400 / 401 / 403 -> permanent, no retry\n\nIf the DM succeeds but the public reply fails, the row stays dm_status=sent / public_reply_status=failed.\nUse the companion workflow \"Retry Failed Public Replies\" to retry ONLY the public reply, never the DM.",
+        "height": 380,
+        "width": 620
+      },
+      "id": "2e2e0075-75a6-4daa-946e-76dce9c20762",
       "name": "Sticky - Retry Design",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1180,
-        -520
-      ],
-      "parameters": {
-        "width": 620,
-        "height": 380,
-        "content": "## Retry design\n\nEach Meta call (Send Private Reply / Reply to Comment) uses onError = \"continue using error output\".\nThe Classify-Error Code node reads the status code defensively from several possible property paths\n(error.httpCode / error.statusCode / error.cause.httpCode) because the exact shape can vary slightly\nacross n8n versions. **Verify this against your instance during the Testing Protocol step in the README\nand adjust the property path if the classification never matches.**\n\n429 / 500 / 502 / 503 / 504 -> retry (max 3 attempts, Retry-After header honoured, else exponential backoff)\n400 / 401 / 403 -> permanent, no retry\n\nIf the DM succeeds but the public reply fails, the row stays dm_status=sent / public_reply_status=failed.\nUse the companion workflow \"Retry Failed Public Replies\" to retry ONLY the public reply, never the DM."
-      }
+        1808,
+        0
+      ]
     },
     {
-      "id": "807019f3-419c-4f07-bd8b-66f8472905ff",
-      "name": "Instagram Webhook Verify (GET)",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        -620,
-        0
-      ],
       "parameters": {
-        "httpMethod": "GET",
         "path": "instagram-comments",
         "responseMode": "responseNode",
         "options": {}
       },
+      "id": "f185652c-8856-4172-a075-f3b572e3baba",
+      "name": "Instagram Webhook Verify (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        528
+      ],
+      "webhookId": "6fbbe612-6c9e-476d-8edc-c877445c3f74",
       "notes": "Meta calls this once when you save the webhook subscription in the App Dashboard."
     },
     {
-      "id": "42463108-a472-42e0-8d79-e324dd78e8b3",
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query || {};\nconst mode = query['hub.mode'];\nconst token = query['hub.verify_token'];\nconst challenge = query['hub.challenge'];\nconst expected = $env.INSTAGRAM_VERIFY_TOKEN;\nconst verified = mode === 'subscribe' && typeof expected === 'string' && expected.length > 0 && token === expected;\nreturn [{ json: { verified, challenge: challenge || '' } }];"
+      },
+      "id": "2c654ab2-0419-47ec-a880-7d0e2fb8842f",
       "name": "Verify Meta Webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -380,
-        0
-      ],
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const query = $input.first().json.query || {};\nconst mode = query['hub.mode'];\nconst token = query['hub.verify_token'];\nconst challenge = query['hub.challenge'];\nconst expected = $env.INSTAGRAM_VERIFY_TOKEN;\nconst verified = mode === 'subscribe' && typeof expected === 'string' && expected.length > 0 && token === expected;\nreturn [{ json: { verified, challenge: challenge || '' } }];"
-      }
+        240,
+        528
+      ]
     },
     {
-      "id": "dbb5ecbb-34f1-4fe0-a557-2c544ca58742",
-      "name": "Verified?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        -140,
-        0
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -84,89 +75,93 @@
                 "singleValue": true
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
-      }
+      },
+      "id": "b87964f3-ac57-4901-b916-eebc34bce709",
+      "name": "Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        528
+      ]
     },
     {
-      "id": "1e4c3c9d-56e6-4572-a5e0-3614ec95a4b7",
-      "name": "Respond OK - Return Challenge",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        100,
-        -80
-      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "={{$json.challenge}}",
         "options": {
           "responseCode": 200
         }
-      }
-    },
-    {
-      "id": "c12b3e78-2a45-4e9d-9416-4837583ed9b7",
-      "name": "Respond Forbidden",
+      },
+      "id": "7e2f1c58-fbb1-40e1-a71b-29299ed58c95",
+      "name": "Respond OK - Return Challenge",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        100,
-        80
-      ],
+        720,
+        448
+      ]
+    },
+    {
       "parameters": {
         "respondWith": "text",
         "responseBody": "Verification failed",
         "options": {
           "responseCode": 403
         }
-      }
+      },
+      "id": "801b7736-0cb6-4242-b8ad-40a1eb72c9c4",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        608
+      ]
     },
     {
-      "id": "850b5a89-75cd-4074-8923-f23453cb7362",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "instagram-comments",
+        "options": {
+          "responseData": "received"
+        }
+      },
+      "id": "4934b9ce-a4a1-4e5d-831e-8c1eee4c3c20",
       "name": "Instagram Webhook Events (POST)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -620,
-        260
+        0,
+        784
       ],
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "instagram-comments",
-        "responseMode": "onReceived",
-        "options": {
-          "responseCode": 200,
-          "responseData": "received"
-        }
-      },
+      "webhookId": "d0f2ac3d-b6a7-48e5-a89b-1716d757e5b1",
       "notes": "Responds 200 immediately (Meta requires a fast ack) then keeps processing below."
     },
     {
-      "id": "0e6e4705-d00a-43ed-bd04-45bf927b380e",
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst events = [];\nfor (const entry of body.entry || []) {\n  for (const change of entry.changes || []) {\n    if (change.field !== 'comments') continue;\n    const v = change.value || {};\n    events.push({\n      json: {\n        comment_id: v.id,\n        comment_text: v.text || '',\n        media_id: v.media ? v.media.id : undefined,\n        media_product_type: v.media ? v.media.media_product_type : undefined,\n        from_id: v.from ? v.from.id : null,\n        username: v.from ? v.from.username : null,\n        parent_id: v.parent_id || null,\n        received_at: new Date((entry.time || Math.floor(Date.now() / 1000)) * 1000).toISOString(),\n      },\n    });\n  }\n}\nreturn events;"
+      },
+      "id": "f0058ff6-6249-49a3-acce-3c6559db318a",
       "name": "Extract Comment Events",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -380,
-        260
+        240,
+        784
       ],
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const body = $input.first().json.body || {};\nconst events = [];\nfor (const entry of body.entry || []) {\n  for (const change of entry.changes || []) {\n    if (change.field !== 'comments') continue;\n    const v = change.value || {};\n    events.push({\n      json: {\n        comment_id: v.id,\n        comment_text: v.text || '',\n        media_id: v.media ? v.media.id : undefined,\n        media_product_type: v.media ? v.media.media_product_type : undefined,\n        from_id: v.from ? v.from.id : null,\n        username: v.from ? v.from.username : null,\n        parent_id: v.parent_id || null,\n        received_at: new Date((entry.time || Math.floor(Date.now() / 1000)) * 1000).toISOString(),\n      },\n    });\n  }\n}\nreturn events;"
-      },
       "notes": "Ignores non-\"comments\" fields (e.g. mentions, live_comments). Splits a batched Meta payload into one item per comment."
     },
     {
-      "id": "8c39514d-b168-46ca-90ef-5d2026c29ca4",
-      "name": "Validate Event",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        -140,
-        260
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -187,32 +182,38 @@
                 "operation": "notEmpty"
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
-      }
+      },
+      "id": "e3e3e740-ad7b-4f72-810c-4ea362110902",
+      "name": "Validate Event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        784
+      ]
     },
     {
-      "id": "8159661e-9a74-4860-a5e6-839c858d0451",
+      "parameters": {},
+      "id": "1acf4398-197e-4700-89f4-3849c1fe403b",
       "name": "Ignore - Invalid Event",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        100,
-        340
+        720,
+        864
       ],
-      "parameters": {},
       "notes": "Status: comment ignored (malformed payload - missing comment_id or media_id)."
     },
     {
-      "id": "61b81b85-e142-4a79-87cf-40d2efd9b06f",
-      "name": "Ignore Own Comments",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        100,
-        180
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -225,33 +226,39 @@
                 "operation": "notEquals"
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
       },
+      "id": "3152c85d-e750-47d2-b9fc-1d7bdde1c365",
+      "name": "Ignore Own Comments",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        704
+      ],
       "notes": "Also prevents infinite loops: our own public replies re-appear as new comments, but from_id will match our account."
     },
     {
-      "id": "d12d86ae-10ee-4210-aec1-0eac47ae5667",
+      "parameters": {},
+      "id": "002dd102-f5db-42f5-a612-5db91f9574f1",
       "name": "Ignore - Own Comment",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        340,
-        260
+        960,
+        784
       ],
-      "parameters": {},
       "notes": "Status: comment ignored (posted by our own Instagram account)."
     },
     {
-      "id": "67830697-ad1f-46b8-af3a-07a60ed65c3d",
-      "name": "Reserve Comment (Atomic)",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        580,
-        180
-      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO ig_processed_comments (comment_id, media_id, comment_text, username, created_at)\nVALUES ($1, $2, $3, $4, now())\nON CONFLICT (comment_id) DO NOTHING\nRETURNING comment_id, media_id, comment_text, username;",
@@ -259,74 +266,80 @@
           "queryReplacement": "={{ [$json.comment_id, $json.media_id, $json.comment_text, $json.username] }}"
         }
       },
+      "id": "5198f89f-ec6c-494c-9369-397ccd5f43ea",
+      "name": "Reserve Comment (Atomic)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
       "notes": "Atomic dedup+reservation in a single statement. If the comment_id already exists, 0 rows are returned and nothing flows downstream for this item - no separate \"Check Duplicate\" step needed (that would not be atomic under concurrent executions). RETURNING deliberately echoes back every column downstream nodes need, so nothing has to be re-fetched from an earlier node by reference (Postgres executeQuery does not reliably keep pairedItem links for RETURNING rows)."
     },
     {
-      "id": "5e3fdc6e-13b5-45f3-801c-582dc4ab1e6a",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function normalize(text) {\n  return (text || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\nreturn { json: { ...$json, normalized_text: normalize($json.comment_text) } };"
+      },
+      "id": "2af56882-7263-4f48-bf87-f18206926649",
       "name": "Normalize Comment Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1060,
-        180
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "function normalize(text) {\n  return (text || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\nreturn { json: { ...$json, normalized_text: normalize($json.comment_text) } };"
-      }
+        1680,
+        704
+      ]
     },
     {
-      "id": "3bd31e61-499f-4183-b6e7-84d693cfc49d",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// EDIT HERE: add / reorder / remove rules. Priority = array order, first match wins.\n// To change priority, simply reorder this array - nothing else in the workflow needs to change.\nconst rules = [\n  {\n    name: 'abc',\n    keywords: ['abc', 'a-b-c', 'a b c'],\n    dmMessages: [\n      'Bonjour {{username}} \\uD83D\\uDC4B Voici le guide des ABC de l\\'IA : https://broken-bison-10f.notion.site/Les-ABC-de-l-IA-Guide-pour-bien-d-marrer-4003c5701ae1818ebb64edbaacde90cf',\n    ],\n  },\n];\nconst defaultDmMessages = [\n  'Bonjour {{username}} \\uD83D\\uDC4B Merci pour ton commentaire. Voici les informations demandees : [LIEN]',\n];\nreturn { json: { ...$json, rules, defaultDmMessages } };"
+      },
+      "id": "633d4076-0b18-43f1-8bbb-604a72175de0",
       "name": "Message Rules Configuration",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
-        180
+        1920,
+        704
       ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// EDIT HERE: add / reorder / remove rules. Priority = array order, first match wins.\n// To change priority, simply reorder this array - nothing else in the workflow needs to change.\nconst rules = [\n  {\n    name: 'prix',\n    keywords: ['prix', 'tarif', 'combien', 'coute', 'cout'],\n    dmMessages: [\n      'Bonjour {{username}} \\uD83D\\uDC4B Voici les informations concernant le prix : [LIEN_OU_INFORMATION]',\n      'Merci pour ton commentaire {{username}}. Tu trouveras tous les tarifs ici : [LIEN]',\n    ],\n  },\n  {\n    name: 'guide',\n    keywords: ['guide', 'pdf', 'document', 'ressource'],\n    dmMessages: [\n      'Bonjour {{username}} \\uD83D\\uDC4B Voici le guide demande : [LIEN]',\n      'Merci pour ton commentaire ! Tu peux recuperer la ressource ici : [LIEN]',\n    ],\n  },\n  {\n    name: 'formation',\n    keywords: ['formation', 'cours', 'programme', 'apprendre'],\n    dmMessages: [\n      'Bonjour {{username}}, voici les informations sur la formation : [LIEN]',\n      'Merci pour ton interet \\uD83D\\uDC4B Je t\\u2019envoie les details de la formation ici : [LIEN]',\n    ],\n  },\n];\nconst defaultDmMessages = [\n  'Bonjour {{username}} \\uD83D\\uDC4B Merci pour ton commentaire. Voici les informations demandees : [LIEN]',\n  'Merci pour ton commentaire {{username}} ! Je t\\u2019envoie les informations ici : [LIEN]',\n];\nreturn { json: { ...$json, rules, defaultDmMessages } };"
-      },
       "notes": "EDIT ME: this is the single place to add keywords, reorder rule priority, edit DM texts and the generic fallback."
     },
     {
-      "id": "f1afd336-459d-4803-94c5-b50883536634",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function normalizeKeyword(k) {\n  return k.toString().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\n}\nconst text = $json.normalized_text || '';\nlet matched = null;\nfor (const rule of $json.rules) {\n  const hit = rule.keywords.some((k) => text.includes(normalizeKeyword(k)));\n  if (hit) { matched = rule; break; }\n}\nreturn {\n  json: {\n    ...$json,\n    matched_rule: matched ? matched.name : null,\n    matched_dm_messages: matched ? matched.dmMessages : $json.defaultDmMessages,\n  },\n};"
+      },
+      "id": "5abc9bdf-8474-4b55-8c54-e9862e079df8",
       "name": "Match Keyword Rule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
-        180
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "function normalizeKeyword(k) {\n  return k.toString().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\n}\nconst text = $json.normalized_text || '';\nlet matched = null;\nfor (const rule of $json.rules) {\n  const hit = rule.keywords.some((k) => text.includes(normalizeKeyword(k)));\n  if (hit) { matched = rule; break; }\n}\nreturn {\n  json: {\n    ...$json,\n    matched_rule: matched ? matched.name : null,\n    matched_dm_messages: matched ? matched.dmMessages : $json.defaultDmMessages,\n  },\n};"
-      }
+        2160,
+        704
+      ]
     },
     {
-      "id": "ff87834f-69f8-405f-b443-5cc1d16ad0ca",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const list = ($json.matched_dm_messages && $json.matched_dm_messages.length) ? $json.matched_dm_messages : $json.defaultDmMessages;\nconst raw = list[Math.floor(Math.random() * list.length)];\nconst username = $json.username;\nlet text = raw.split('{{username}}').join(username || '').replace(/\\s{2,}/g, ' ').trim();\n// Safety net: never send a literal undefined/null or an unresolved {{...}} placeholder.\nif (/undefined|null/i.test(text) || /\\{\\{.*?\\}\\}/.test(text)) {\n  text = text.replace(/undefined|null/gi, '').replace(/\\{\\{.*?\\}\\}/g, '').replace(/\\s{2,}/g, ' ').trim();\n}\nreturn { json: { ...$json, selected_dm: text } };"
+      },
+      "id": "c4442a8c-9220-4916-88fd-c4f5254dbdb1",
       "name": "Select Random DM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1780,
-        180
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const list = ($json.matched_dm_messages && $json.matched_dm_messages.length) ? $json.matched_dm_messages : $json.defaultDmMessages;\nconst raw = list[Math.floor(Math.random() * list.length)];\nconst username = $json.username;\nlet text = raw.split('{{username}}').join(username || '').replace(/\\s{2,}/g, ' ').trim();\n// Safety net: never send a literal undefined/null or an unresolved {{...}} placeholder.\nif (/undefined|null/i.test(text) || /\\{\\{.*?\\}\\}/.test(text)) {\n  text = text.replace(/undefined|null/gi, '').replace(/\\{\\{.*?\\}\\}/g, '').replace(/\\s{2,}/g, ' ').trim();\n}\nreturn { json: { ...$json, selected_dm: text } };"
-      }
+        2384,
+        512
+      ]
     },
     {
-      "id": "961117d7-5da9-46a5-8498-dd7360d1b97f",
-      "name": "Send Private Reply",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2020,
-        180
-      ],
       "parameters": {
         "method": "POST",
         "url": "=https://graph.instagram.com/v26.0/{{$env.INSTAGRAM_USER_ID}}/messages",
@@ -348,65 +361,70 @@
               "fullResponse": true
             }
           }
-        },
-        "onError": "continueErrorOutput"
+        }
       },
+      "id": "1c53918e-41ed-4429-a9af-5212343d8379",
+      "name": "Send Private Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        704
+      ],
       "notes": "POST /{ig-user-id}/messages - https://developers.facebook.com/docs/instagram-platform/private-replies/. One private reply per comment_id max (Meta hard limit) - do not call this twice for the same comment_id."
     },
     {
-      "id": "52c81ad8-2418-49f9-8ebe-85637e25b8c3",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, dm_status: 'sent' } };"
+      },
+      "id": "16c9dd71-607c-49f0-845c-143c9182748b",
       "name": "Record DM Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2260,
-        100
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "return { json: { ...$json, dm_status: 'sent' } };"
-      }
+        2880,
+        624
+      ]
     },
     {
-      "id": "50f99d65-afb6-4427-a91d-ade2d5aa9b08",
-      "name": "Update Row - DM Sent",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2500,
-        100
-      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE ig_processed_comments\nSET matched_rule = $2, selected_dm = $3, dm_status = 'sent'\nWHERE comment_id = $1;",
         "options": {
           "queryReplacement": "={{ [$json.comment_id, $json.matched_rule, $json.selected_dm] }}"
         }
+      },
+      "id": "bcfa8643-0a01-40ab-a24d-d1e5d50072fe",
+      "name": "Update Row - DM Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3120,
+        624
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
       }
     },
     {
-      "id": "482fd93f-22af-4d8a-9eef-bf91b63ac31d",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const err = $json.error || {};\n// The exact shape of the error object can vary by n8n version - verify during testing.\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = ($json.dm_attempt || 0) + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...$json,\n    dm_attempt: attempt,\n    dm_status_code: statusCode || null,\n    dm_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    dm_can_retry: canRetry,\n    dm_wait_seconds: waitSeconds,\n  },\n};"
+      },
+      "id": "0df54497-3c82-4e91-8e03-92c5ed4c5b30",
       "name": "Classify DM Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2260,
-        280
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const err = $json.error || {};\n// The exact shape of the error object can vary by n8n version - verify during testing.\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = ($json.dm_attempt || 0) + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...$json,\n    dm_attempt: attempt,\n    dm_status_code: statusCode || null,\n    dm_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    dm_can_retry: canRetry,\n    dm_wait_seconds: waitSeconds,\n  },\n};"
-      }
+        2880,
+        800
+      ]
     },
     {
-      "id": "8a17fc8b-f1c7-4f15-a21c-bc99eddcb9c2",
-      "name": "Retry DM?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2500,
-        280
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -420,48 +438,54 @@
                 "singleValue": true
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
-      }
+      },
+      "id": "d74055eb-fb5d-4135-b7df-fbaae5358fd3",
+      "name": "Retry DM?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        800
+      ]
     },
     {
-      "id": "41fbdd35-35e0-4f88-9863-1ad29d0f9178",
+      "parameters": {
+        "amount": "={{$json.dm_wait_seconds}}"
+      },
+      "id": "1905c499-3a60-4d4c-9cfc-6d4a7a71b2bf",
       "name": "Wait Before DM Retry",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2740,
-        220
+        3360,
+        752
       ],
-      "parameters": {
-        "amount": "={{$json.dm_wait_seconds}}",
-        "unit": "seconds"
-      }
+      "webhookId": "4784b24f-8c2c-49c3-924b-6159e850308b"
     },
     {
-      "id": "ed5d259a-5ab7-4404-a3bd-22d19d6a0c5a",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, dm_status: 'failed' } };"
+      },
+      "id": "dd21d1d3-2ec7-483e-9a82-220cf2783dc7",
       "name": "Mark DM Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2740,
-        380
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "return { json: { ...$json, dm_status: 'failed' } };"
-      }
+        3360,
+        912
+      ]
     },
     {
-      "id": "70b90270-3903-4fc5-a11f-4667c8f97eff",
-      "name": "Update Row - DM Failed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        2980,
-        380
-      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE ig_processed_comments\nSET matched_rule = $2, dm_status = 'failed', public_reply_status = 'skipped', status = 'error', error_message = $3, processed_at = now()\nWHERE comment_id = $1;",
@@ -469,46 +493,52 @@
           "queryReplacement": "={{ [$json.comment_id, $json.matched_rule, $json.dm_error_message] }}"
         }
       },
+      "id": "c89091d6-70e0-47af-979e-30fd68a7033a",
+      "name": "Update Row - DM Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3600,
+        912
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
       "notes": "Status: DM echoue - reponse publique volontairement non envoyee."
     },
     {
-      "id": "22b5f17d-87e2-4572-9c1d-11150418db33",
-      "name": "Public Replies Configuration",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2740,
-        100
-      ],
       "parameters": {
         "mode": "runOnceForEachItem",
         "jsCode": "// EDIT HERE: add / remove / reword public replies. One is chosen at random for each comment.\nconst publicReplies = [\n  'Merci pour ton commentaire \\uD83D\\uDE4C Je viens de t\\u2019envoyer un message prive.',\n  'C\\u2019est envoye en message prive \\uD83D\\uDCE9',\n  'Merci ! Regarde tes messages prives \\uD83D\\uDC4B',\n  'Je viens de t\\u2019envoyer les informations en prive \\u2705',\n  'Les informations viennent de partir en DM \\uD83D\\uDE80',\n];\nreturn { json: { ...$json, publicReplies } };"
       },
+      "id": "39d2ea50-a049-4238-9159-5953884379f7",
+      "name": "Public Replies Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        624
+      ],
       "notes": "EDIT ME: the list of possible public replies lives only here."
     },
     {
-      "id": "fd95c7f8-c859-49d0-a20e-b715e2f3fe8b",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const list = $json.publicReplies; return { json: { ...$json, selected_public_reply: list[Math.floor(Math.random() * list.length)] } };"
+      },
+      "id": "66f83e43-87e3-4e8b-979a-0c6d03b11948",
       "name": "Select Random Public Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2980,
-        100
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const list = $json.publicReplies; return { json: { ...$json, selected_public_reply: list[Math.floor(Math.random() * list.length)] } };"
-      }
+        3600,
+        624
+      ]
     },
     {
-      "id": "3427af8b-b166-4066-8899-a14d9f7b398d",
-      "name": "Reply to Comment",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3220,
-        100
-      ],
       "parameters": {
         "method": "POST",
         "url": "=https://graph.instagram.com/v26.0/{{$json.comment_id}}/replies",
@@ -530,34 +560,33 @@
               "fullResponse": true
             }
           }
-        },
-        "onError": "continueErrorOutput"
+        }
       },
+      "id": "237af17e-36aa-446c-8850-5a3943758a7a",
+      "name": "Reply to Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4400,
+        656
+      ],
       "notes": "POST /{ig-comment-id}/replies - https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-comment/replies/. Only run once the private reply above has actually succeeded."
     },
     {
-      "id": "57c02225-2437-47c8-b19c-18c9f0cf52d6",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, public_reply_status: 'sent' } };"
+      },
+      "id": "5d742ce2-26d8-44c9-9c37-6a636cece3af",
       "name": "Record Public Reply Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3460,
-        20
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "return { json: { ...$json, public_reply_status: 'sent' } };"
-      }
+        4464,
+        544
+      ]
     },
     {
-      "id": "da7921e7-68b2-4e02-9eb6-591c21eb0fd5",
-      "name": "Save Success",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        3700,
-        20
-      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE ig_processed_comments\nSET selected_public_reply = $2, public_reply_status = 'sent', status = 'done', processed_at = now()\nWHERE comment_id = $1;",
@@ -565,31 +594,37 @@
           "queryReplacement": "={{ [$json.comment_id, $json.selected_public_reply] }}"
         }
       },
+      "id": "d81d9dae-c127-4122-bcd7-64acd35debd6",
+      "name": "Save Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4704,
+        544
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
       "notes": "Status: DM envoye, reponse publique envoyee."
     },
     {
-      "id": "b0b9579c-e202-4cb7-8151-06ac1df8f79b",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const err = $json.error || {};\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = ($json.pr_attempt || 0) + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...$json,\n    pr_attempt: attempt,\n    pr_status_code: statusCode || null,\n    pr_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    pr_can_retry: canRetry,\n    pr_wait_seconds: waitSeconds,\n  },\n};"
+      },
+      "id": "e6f3942b-a92f-4a9b-af56-4d2305dcdc45",
       "name": "Classify Public Reply Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3460,
-        200
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const err = $json.error || {};\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = ($json.pr_attempt || 0) + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...$json,\n    pr_attempt: attempt,\n    pr_status_code: statusCode || null,\n    pr_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    pr_can_retry: canRetry,\n    pr_wait_seconds: waitSeconds,\n  },\n};"
-      }
+        4464,
+        720
+      ]
     },
     {
-      "id": "7805ee07-832c-4294-b351-7048b88b71b5",
-      "name": "Retry Public Reply?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3700,
-        200
-      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -603,48 +638,54 @@
                 "singleValue": true
               }
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
-      }
+      },
+      "id": "44d54629-4000-4a01-8dcb-fd844b4b96ef",
+      "name": "Retry Public Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4704,
+        720
+      ]
     },
     {
-      "id": "5598c31c-0a2e-4e79-b81e-da48fc99c645",
+      "parameters": {
+        "amount": "={{$json.pr_wait_seconds}}"
+      },
+      "id": "5fb4672d-03d9-4572-a255-4ffb2f2c97ce",
       "name": "Wait Before Public Reply Retry",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3940,
-        140
+        4944,
+        672
       ],
-      "parameters": {
-        "amount": "={{$json.pr_wait_seconds}}",
-        "unit": "seconds"
-      }
+      "webhookId": "03873fbc-421b-4388-b60e-bcedc5d0cfe8"
     },
     {
-      "id": "3151bc0e-56f4-4f48-b183-3aa6008d9fdf",
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, public_reply_status: 'failed' } };"
+      },
+      "id": "e82167e8-7f18-4968-90bf-0199470d97a9",
       "name": "Mark Public Reply Failed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3940,
-        300
-      ],
-      "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "return { json: { ...$json, public_reply_status: 'failed' } };"
-      }
+        4944,
+        832
+      ]
     },
     {
-      "id": "f788494d-8106-4037-9ef4-1be354b1d0cf",
-      "name": "Update Row - Public Reply Failed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        4180,
-        300
-      ],
       "parameters": {
         "operation": "executeQuery",
         "query": "UPDATE ig_processed_comments\nSET public_reply_status = 'failed', status = 'error', error_message = $2, processed_at = now()\nWHERE comment_id = $1;",
@@ -652,21 +693,60 @@
           "queryReplacement": "={{ [$json.comment_id, $json.pr_error_message] }}"
         }
       },
+      "id": "0544a7dc-3717-44fe-8b7a-e037c6a4c238",
+      "name": "Update Row - Public Reply Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        5184,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
       "notes": "Status: DM envoye, reponse publique echouee. Utiliser le workflow \"Retry Failed Public Replies\" pour reessayer uniquement cette etape."
     },
     {
-      "id": "8b5514fe-1b1f-4bcb-80fb-1fddffca2c9d",
+      "parameters": {},
+      "id": "1f2cd0eb-07d6-46e9-8a16-484a7bf4286b",
       "name": "Handle Error",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        4420,
-        380
+        5424,
+        912
       ],
-      "parameters": {},
       "notes": "Single terminal node for all error branches - makes failed executions easy to spot in the n8n Executions list."
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3840,
+        400
+      ],
+      "id": "59df8b0b-e649-4c0c-beaa-be2bccd4aa88",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn [\n  {\n    json: {\n      comment_id: items[0].json.comment_id,\n      success: items[1].json.success,\n      publicReplies: items[1].json.publicReplies,\n      selected_public_reply: items[1].json.selected_public_reply,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4016,
+        512
+      ],
+      "id": "aebdaf86-77a0-4cd0-afe0-ab5a52675b9f",
+      "name": "Format merged outputs"
     }
   ],
+  "pinData": {},
   "connections": {
     "Instagram Webhook Verify (GET)": {
       "main": [
@@ -817,6 +897,11 @@
             "node": "Send Private Reply",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -829,13 +914,6 @@
             "type": "main",
             "index": 0
           }
-        ],
-        [
-          {
-            "node": "Classify DM Error",
-            "type": "main",
-            "index": 0
-          }
         ]
       ]
     },
@@ -844,6 +922,11 @@
         [
           {
             "node": "Update Row - DM Sent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Select Random DM",
             "type": "main",
             "index": 0
           }
@@ -938,9 +1021,9 @@
       "main": [
         [
           {
-            "node": "Reply to Comment",
+            "node": "Merge",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -950,13 +1033,6 @@
         [
           {
             "node": "Record Public Reply Success",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Classify Public Reply Error",
             "type": "main",
             "index": 0
           }
@@ -1035,11 +1111,41 @@
           }
         ]
       ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Format merged outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format merged outputs": {
+      "main": [
+        [
+          {
+            "node": "Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "pinData": {}
+  "versionId": "561a1b34-f0e2-4e83-ada5-5c1f6eaa8711",
+  "meta": {
+    "instanceId": "bc97a4c340a27ba551882777e58efcc43c830a9f8fb623e36940704e72e77e25"
+  },
+  "nodeGroups": [],
+  "id": "WNwCS5eO2IhLr5ID",
+  "tags": []
 }
