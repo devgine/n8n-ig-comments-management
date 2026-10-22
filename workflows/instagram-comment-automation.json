@@ -299,7 +299,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// EDIT HERE: add / reorder / remove rules. Priority = array order, first match wins.\n// buttonTitle + buttonUrl : envoie le DM avec un bouton cliquable (Button Template).\n// Laisser buttonUrl vide ('') pour envoyer un simple message texte.\n// Limites Meta : texte du DM <= 640 caracteres, titre du bouton court (< 20 caracteres).\nconst rules = [\n  {\n    name: 'abc',\n    keywords: ['abc', 'a-b-c', 'a b c'],\n    dmMessages: [\n      'Bonjour {{username}} 👋 Merci pour ton intérêt ! Voici ton guide gratuit « Les ABC de l\\'IA » : prompts, images, vidéos et les meilleurs outils.',\n    ],\n    buttonTitle: '📘 Lire le guide',\n    buttonUrl: 'https://broken-bison-10f.notion.site/Les-ABC-de-l-IA-Guide-pour-bien-d-marrer-4003c5701ae1818ebb64edbaacde90cf',\n  },\n];\nconst defaultDmMessages = [\n  'Bonjour {{username}} 👋 Merci pour ton commentaire. Voici les informations demandées : [LIEN]',\n];\nreturn { json: { ...$json, rules, defaultDmMessages } };"
+        "jsCode": "// EDIT HERE: add / reorder / remove rules. Priority = array order, first match wins.\n// buttonTitle + buttonUrl : envoie le DM avec un bouton cliquable (Button Template).\n// Laisser buttonUrl vide ('') pour envoyer un simple message texte.\n// Limites Meta : texte du DM <= 640 caracteres, titre du bouton court (< 20 caracteres).\nconst rules = [\n  {\n    name: 'abc',\n    keywords: ['abc', 'a-b-c', 'a b c'],\n    dmMessages: [\n      'Bonjour {{username}} 👋 Merci pour ton intérêt ! Voici ton guide gratuit « Les ABC de l\\'IA » : prompts, images, vidéos et les meilleurs outils.',\n    ],\n    buttonTitle: '📘 Lire le guide',\n    buttonUrl: 'https://broken-bison-10f.notion.site/Les-ABC-de-l-IA-Guide-pour-bien-d-marrer-4003c5701ae1818ebb64edbaacde90cf',\n  },\n];\nconst defaultDmMessages = [\n  'Bonjour {{username}} 👋 Merci pour ton commentaire.',\n];\nreturn { json: { ...$json, rules, defaultDmMessages } };"
       },
       "id": "633d4076-0b18-43f1-8bbb-604a72175de0",
       "name": "Message Rules Configuration",
@@ -309,7 +309,7 @@
         1920,
         704
       ],
-      "notes": "EDIT ME: keywords, rule priority, DM texts, button title/URL and the generic fallback."
+      "notes": "EDIT ME: keywords, rule priority, DM texts, button title/URL. Comments without any keyword are ignored (no DM, no public reply)."
     },
     {
       "parameters": {
@@ -335,7 +335,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2400,
+        2640,
         704
       ]
     },
@@ -368,7 +368,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2640,
+        2880,
         704
       ],
       "onError": "continueErrorOutput",
@@ -384,7 +384,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
+        3120,
         608
       ]
     },
@@ -401,7 +401,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        3120,
+        3360,
         608
       ],
       "credentials": {
@@ -422,7 +422,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
+        3120,
         816
       ]
     },
@@ -455,7 +455,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3120,
+        3360,
         816
       ]
     },
@@ -468,7 +468,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3360,
+        3600,
         768
       ],
       "webhookId": "4784b24f-8c2c-49c3-924b-6159e850308b"
@@ -483,7 +483,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3360,
+        3600,
         928
       ]
     },
@@ -500,7 +500,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        3600,
+        3840,
         928
       ],
       "credentials": {
@@ -521,7 +521,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3360,
+        3600,
         608
       ],
       "notes": "EDIT ME: the list of possible public replies lives only here."
@@ -536,7 +536,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3600,
+        3840,
         608
       ]
     },
@@ -569,7 +569,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3840,
+        4080,
         608
       ],
       "onError": "continueErrorOutput",
@@ -585,7 +585,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4080,
+        4320,
         512
       ]
     },
@@ -602,7 +602,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        4320,
+        4560,
         512
       ],
       "credentials": {
@@ -623,7 +623,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4080,
+        4320,
         720
       ]
     },
@@ -656,7 +656,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4320,
+        4560,
         720
       ]
     },
@@ -669,7 +669,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        4560,
+        4800,
         672
       ],
       "webhookId": "03873fbc-421b-4388-b60e-bcedc5d0cfe8"
@@ -684,7 +684,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4560,
+        4800,
         832
       ]
     },
@@ -701,7 +701,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        4800,
+        5040,
         832
       ],
       "credentials": {
@@ -719,10 +719,56 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        5040,
+        5280,
         928
       ],
       "notes": "Single terminal node for all error branches - makes failed executions easy to spot in the n8n Executions list."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.matched_rule }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "7b1e4c2a-9d3f-4e8a-b6c1-2f5a8d9e0c11",
+      "name": "Keyword Matched?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        704
+      ],
+      "notes": "Continue only if the comment contains a keyword from Message Rules Configuration. Otherwise: no DM, no public reply."
+    },
+    {
+      "parameters": {},
+      "id": "3c9d2e7f-1a4b-4c8d-9e2f-6b7a1c3d5e22",
+      "name": "Ignore - No Keyword",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        864
+      ],
+      "notes": "Status: comment ignored (no keyword from the rules list)."
     }
   ],
   "pinData": {},
@@ -730,224 +776,386 @@
     "Instagram Webhook Verify (GET)": {
       "main": [
         [
-          { "node": "Verify Meta Webhook", "type": "main", "index": 0 }
+          {
+            "node": "Verify Meta Webhook",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Verify Meta Webhook": {
       "main": [
         [
-          { "node": "Verified?", "type": "main", "index": 0 }
+          {
+            "node": "Verified?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Verified?": {
       "main": [
         [
-          { "node": "Respond OK - Return Challenge", "type": "main", "index": 0 }
+          {
+            "node": "Respond OK - Return Challenge",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Respond Forbidden", "type": "main", "index": 0 }
+          {
+            "node": "Respond Forbidden",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Instagram Webhook Events (POST)": {
       "main": [
         [
-          { "node": "Extract Comment Events", "type": "main", "index": 0 }
+          {
+            "node": "Extract Comment Events",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Extract Comment Events": {
       "main": [
         [
-          { "node": "Validate Event", "type": "main", "index": 0 }
+          {
+            "node": "Validate Event",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Validate Event": {
       "main": [
         [
-          { "node": "Ignore Own Comments", "type": "main", "index": 0 }
+          {
+            "node": "Ignore Own Comments",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Ignore - Invalid Event", "type": "main", "index": 0 }
+          {
+            "node": "Ignore - Invalid Event",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Ignore Own Comments": {
       "main": [
         [
-          { "node": "Reserve Comment (Atomic)", "type": "main", "index": 0 }
+          {
+            "node": "Reserve Comment (Atomic)",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Ignore - Own Comment", "type": "main", "index": 0 }
+          {
+            "node": "Ignore - Own Comment",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Reserve Comment (Atomic)": {
       "main": [
         [
-          { "node": "Normalize Comment Text", "type": "main", "index": 0 }
+          {
+            "node": "Normalize Comment Text",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Normalize Comment Text": {
       "main": [
         [
-          { "node": "Message Rules Configuration", "type": "main", "index": 0 }
+          {
+            "node": "Message Rules Configuration",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Message Rules Configuration": {
       "main": [
         [
-          { "node": "Match Keyword Rule", "type": "main", "index": 0 }
+          {
+            "node": "Match Keyword Rule",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Match Keyword Rule": {
       "main": [
         [
-          { "node": "Select Random DM", "type": "main", "index": 0 }
+          {
+            "node": "Keyword Matched?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Select Random DM": {
       "main": [
         [
-          { "node": "Send Private Reply", "type": "main", "index": 0 }
+          {
+            "node": "Send Private Reply",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Send Private Reply": {
       "main": [
         [
-          { "node": "Record DM Success", "type": "main", "index": 0 }
+          {
+            "node": "Record DM Success",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Classify DM Error", "type": "main", "index": 0 }
+          {
+            "node": "Classify DM Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Record DM Success": {
       "main": [
         [
-          { "node": "Update Row - DM Sent", "type": "main", "index": 0 }
+          {
+            "node": "Update Row - DM Sent",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Update Row - DM Sent": {
       "main": [
         [
-          { "node": "Public Replies Configuration", "type": "main", "index": 0 }
+          {
+            "node": "Public Replies Configuration",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Classify DM Error": {
       "main": [
         [
-          { "node": "Retry DM?", "type": "main", "index": 0 }
+          {
+            "node": "Retry DM?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Retry DM?": {
       "main": [
         [
-          { "node": "Wait Before DM Retry", "type": "main", "index": 0 }
+          {
+            "node": "Wait Before DM Retry",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Mark DM Failed", "type": "main", "index": 0 }
+          {
+            "node": "Mark DM Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Wait Before DM Retry": {
       "main": [
         [
-          { "node": "Send Private Reply", "type": "main", "index": 0 }
+          {
+            "node": "Send Private Reply",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Mark DM Failed": {
       "main": [
         [
-          { "node": "Update Row - DM Failed", "type": "main", "index": 0 }
+          {
+            "node": "Update Row - DM Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Update Row - DM Failed": {
       "main": [
         [
-          { "node": "Handle Error", "type": "main", "index": 0 }
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Public Replies Configuration": {
       "main": [
         [
-          { "node": "Select Random Public Reply", "type": "main", "index": 0 }
+          {
+            "node": "Select Random Public Reply",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Select Random Public Reply": {
       "main": [
         [
-          { "node": "Reply to Comment", "type": "main", "index": 0 }
+          {
+            "node": "Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Reply to Comment": {
       "main": [
         [
-          { "node": "Record Public Reply Success", "type": "main", "index": 0 }
+          {
+            "node": "Record Public Reply Success",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Classify Public Reply Error", "type": "main", "index": 0 }
+          {
+            "node": "Classify Public Reply Error",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Record Public Reply Success": {
       "main": [
         [
-          { "node": "Save Success", "type": "main", "index": 0 }
+          {
+            "node": "Save Success",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Classify Public Reply Error": {
       "main": [
         [
-          { "node": "Retry Public Reply?", "type": "main", "index": 0 }
+          {
+            "node": "Retry Public Reply?",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Retry Public Reply?": {
       "main": [
         [
-          { "node": "Wait Before Public Reply Retry", "type": "main", "index": 0 }
+          {
+            "node": "Wait Before Public Reply Retry",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Mark Public Reply Failed", "type": "main", "index": 0 }
+          {
+            "node": "Mark Public Reply Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Wait Before Public Reply Retry": {
       "main": [
         [
-          { "node": "Reply to Comment", "type": "main", "index": 0 }
+          {
+            "node": "Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Mark Public Reply Failed": {
       "main": [
         [
-          { "node": "Update Row - Public Reply Failed", "type": "main", "index": 0 }
+          {
+            "node": "Update Row - Public Reply Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Update Row - Public Reply Failed": {
       "main": [
         [
-          { "node": "Handle Error", "type": "main", "index": 0 }
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword Matched?": {
+      "main": [
+        [
+          {
+            "node": "Select Random DM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore - No Keyword",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     }
