@@ -285,7 +285,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "function normalize(text) {\n  return (text || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\nreturn { json: { ...$json, normalized_text: normalize($json.comment_text) } };"
+        "jsCode": "function normalize(text) {\n  return (text || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n// Reserve Comment (Postgres) ne renvoie que les colonnes du RETURNING : on remet le type d'evenement.\nreturn { json: { ...$json, event_type: 'comment', normalized_text: normalize($json.comment_text) } };"
       },
       "id": "2af56882-7263-4f48-bf87-f18206926649",
       "name": "Normalize Comment Text",
@@ -1585,6 +1585,17 @@
         [
           {
             "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Postback Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Postback Reply",
             "type": "main",
             "index": 0
           }
