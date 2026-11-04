@@ -1,0 +1,1202 @@
+{
+  "name": "Facebook Comment Automation - Private Reply + Public Reply + Like",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Facebook Comment Automation\n\nGraph API version: **v26.0** (graph.facebook.com).\n\nEnv vars required:\n- FACEBOOK_PAGE_ACCESS_TOKEN (Page access token)\n- FACEBOOK_PAGE_ID\n- FACEBOOK_VERIFY_TOKEN\n\nMeta app: subscribe the Page to the webhook field **feed**.\nPermissions: pages_show_list, pages_manage_metadata, pages_read_engagement, pages_messaging, pages_manage_engagement.\n\nCredentials: one **Postgres** credential. Table: **fb_processed_comments** (SQL in the README / chat).\n\nFlow: new comment -> keyword match -> like the comment + private reply (DM with button) -> public reply.\nComments without a keyword from \"Message Rules Configuration\" are ignored.\n\nFacebook allows ONE private reply per comment, within 7 days.",
+        "height": 600,
+        "width": 560
+      },
+      "id": "9b943fb2-c526-4cc9-bb90-3d8e19376a86",
+      "name": "Sticky - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Retry design\n\nSend Private Reply / Reply to Comment use onError = \"continue using error output\" (success = output 0, error = output 1).\nHTTP Request outputs (success and error) do NOT carry the input fields, so the nodes right after them\nrecover the context with $('Select Random DM').item / $('Select Random Public Reply').item (paired items).\nThe attempt counter uses $runIndex of the Classify node (1st run = attempt 1).\n\nThe Classify-Error nodes read the status code defensively (error.httpCode / error.statusCode / error.cause.httpCode).\n**Verify this against your instance during testing.**\n\n429 / 500 / 502 / 503 / 504 -> retry (max 3 attempts, Retry-After honoured, else exponential backoff)\n400 / 401 / 403 -> permanent, no retry\n\nIf the DM succeeds but the public reply fails, the row stays dm_status=sent / public_reply_status=failed.\nUse \"Retry Failed Public Replies\" to retry ONLY the public reply, never the DM.",
+        "height": 440,
+        "width": 660
+      },
+      "id": "2cdb542e-63c7-4155-9e5d-bcd758610597",
+      "name": "Sticky - Retry Design",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "path": "facebook-comments",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c5546433-d055-4668-a167-bea6a90e3fb2",
+      "name": "Facebook Webhook Verify (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        528
+      ],
+      "webhookId": "aa73fd97-94a9-456a-8bb7-920f287a669f",
+      "notes": "Meta calls this once when you save the webhook subscription in the App Dashboard."
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.first().json.query || {};\nconst mode = query['hub.mode'];\nconst token = query['hub.verify_token'];\nconst challenge = query['hub.challenge'];\nconst expected = $env.FACEBOOK_VERIFY_TOKEN;\nconst verified = mode === 'subscribe' && typeof expected === 'string' && expected.length > 0 && token === expected;\nreturn [{ json: { verified, challenge: challenge || '' } }];"
+      },
+      "id": "a4693294-2be4-4fe3-a4f3-e1ca466741a9",
+      "name": "Verify Meta Webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.verified}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "f254b860-6069-4be2-ae2e-0eb0fd619322",
+      "name": "Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json.challenge}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "4cd5a39a-21d1-4b67-9fd8-37372fc5dc5b",
+      "name": "Respond OK - Return Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Verification failed",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "d4514079-d244-41cb-8b27-afdc38d7eaad",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "facebook-comments",
+        "options": {
+          "responseData": "received"
+        }
+      },
+      "id": "94bb6437-12dd-4ace-8749-1dade03b3b61",
+      "name": "Facebook Webhook Events (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        784
+      ],
+      "webhookId": "267bf299-0bb5-4dbf-905b-f7f85e4be800",
+      "notes": "Responds 200 immediately (Meta requires a fast ack) then keeps processing below."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Facebook Page webhook, field \"feed\": one change per post/comment/reaction event.\nconst body = $input.first().json.body || {};\nconst events = [];\nfor (const entry of body.entry || []) {\n  for (const change of entry.changes || []) {\n    if (change.field !== 'feed') continue;\n    const v = change.value || {};\n    if (v.item !== 'comment' || v.verb !== 'add') continue;   // only NEW comments\n    const fullName = v.from ? (v.from.name || '') : '';\n    events.push({\n      json: {\n        comment_id: v.comment_id,\n        comment_text: v.message || '',\n        post_id: v.post_id,\n        from_id: v.from ? v.from.id : null,\n        username: fullName.split(' ')[0] || null,   // first name for the greeting\n        full_name: fullName || null,\n        parent_id: v.parent_id || null,\n        received_at: v.created_time\n          ? new Date(v.created_time * 1000).toISOString()\n          : new Date((entry.time || Math.floor(Date.now() / 1000)) * 1000).toISOString(),\n      },\n    });\n  }\n}\nreturn events;"
+      },
+      "id": "ba3a03ac-a1f0-4531-9957-e4ec0532ffad",
+      "name": "Extract Comment Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        784
+      ],
+      "notes": "Keeps only feed changes with item=comment and verb=add (new comments). Edits, deletions, reactions and posts are ignored."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.comment_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{$json.post_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "b181c9de-ee55-4d69-bd68-fc809242a280",
+      "name": "Validate Event",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        784
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "720e648e-bb8a-4180-8334-751e5c68b442",
+      "name": "Ignore - Invalid Event",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        864
+      ],
+      "notes": "Status: comment ignored (malformed payload - missing comment_id or post_id)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.from_id}}",
+              "rightValue": "={{$env.FACEBOOK_PAGE_ID}}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "59f780c9-65d5-4490-b74d-3a1d5c5edf49",
+      "name": "Ignore Own Comments",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        704
+      ],
+      "notes": "Skips comments posted by the Page itself (including our own public replies, which come back as new comments)."
+    },
+    {
+      "parameters": {},
+      "id": "ee8c870c-8d47-479b-878c-e551b1578dd2",
+      "name": "Ignore - Own Comment",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        960,
+        784
+      ],
+      "notes": "Status: comment ignored (posted by our own Facebook Page)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO fb_processed_comments (comment_id, post_id, comment_text, username, created_at)\nVALUES ($1, $2, $3, $4, now())\nON CONFLICT (comment_id) DO NOTHING\nRETURNING comment_id, post_id, comment_text, username;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.post_id, $json.comment_text, $json.username] }}"
+        }
+      },
+      "id": "3a60632f-a546-4937-bb73-6cf1ba47ab3f",
+      "name": "Reserve Comment (Atomic)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        704
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Atomic dedup+reservation in a single statement. If the comment_id already exists, 0 rows are returned and nothing flows downstream. RETURNING echoes back every column downstream nodes need."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function normalize(text) {\n  return (text || '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\nreturn { json: { ...$json, normalized_text: normalize($json.comment_text) } };"
+      },
+      "id": "69bf280f-d19b-4356-bd81-32bc1aedb76b",
+      "name": "Normalize Comment Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// EDIT HERE: add / reorder / remove rules. Priority = array order, first match wins.\n// buttonTitle + buttonUrl : DM avec un bouton cliquable. Laisser buttonUrl vide ('') pour un simple texte.\n// {{username}} = prenom de la personne (si Facebook le transmet).\n// Limites Meta : texte du DM <= 640 caracteres, titre du bouton court (< 20 caracteres).\nconst rules = [\n  {\n    name: 'abc',\n    keywords: ['abc', 'a-b-c', 'a b c'],\n    dmMessages: [\n      'Bonjour {{username}} 👋 Merci pour ton intérêt ! Voici ton guide gratuit « Les ABC de l\\'IA » : prompts, images, vidéos et les meilleurs outils.',\n    ],\n    buttonTitle: '📘 Lire le guide',\n    buttonUrl: 'https://broken-bison-10f.notion.site/Les-ABC-de-l-IA-Guide-pour-bien-d-marrer-4003c5701ae1818ebb64edbaacde90cf',\n  },\n];\nconst defaultDmMessages = [\n  'Bonjour {{username}} 👋 Merci pour ton commentaire.',\n];\nreturn { json: { ...$json, rules, defaultDmMessages } };"
+      },
+      "id": "9d0b789e-c723-4e06-b7b5-e27381028e46",
+      "name": "Message Rules Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        704
+      ],
+      "notes": "EDIT ME: keywords, rule priority, DM texts, button title/URL. Comments without any keyword are ignored (no DM, no public reply)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "function normalizeKeyword(k) {\n  return k.toString().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\n}\nconst text = $json.normalized_text || '';\nlet matched = null;\nfor (const rule of $json.rules) {\n  const hit = rule.keywords.some((k) => text.includes(normalizeKeyword(k)));\n  if (hit) { matched = rule; break; }\n}\nreturn {\n  json: {\n    ...$json,\n    matched_rule: matched ? matched.name : null,\n    matched_dm_messages: matched ? matched.dmMessages : $json.defaultDmMessages,\n    button_title: matched && matched.buttonUrl ? (matched.buttonTitle || 'Ouvrir') : null,\n    button_url: matched && matched.buttonUrl ? matched.buttonUrl : null,\n  },\n};"
+      },
+      "id": "39189cfd-5e27-4647-8a93-3fd8d58ca46d",
+      "name": "Match Keyword Rule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const list = ($json.matched_dm_messages && $json.matched_dm_messages.length) ? $json.matched_dm_messages : $json.defaultDmMessages;\nconst raw = list[Math.floor(Math.random() * list.length)];\nconst username = $json.username;\nlet text = raw.split('{{username}}').join(username || '').replace(/\\s{2,}/g, ' ').trim();\n// Safety net: never send a literal undefined/null or an unresolved {{...}} placeholder.\nif (/undefined|null/i.test(text) || /\\{\\{.*?\\}\\}/.test(text)) {\n  text = text.replace(/undefined|null/gi, '').replace(/\\{\\{.*?\\}\\}/g, '').replace(/\\s{2,}/g, ' ').trim();\n}\n// Button Template: le texte est limite a 640 caracteres.\nif ($json.button_url && text.length > 640) {\n  text = text.slice(0, 637) + '...';\n}\nreturn { json: { ...$json, selected_dm: text } };"
+      },
+      "id": "a3bfa3d2-1743-442b-bc29-f2378cac585a",
+      "name": "Select Random DM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v26.0/{{$env.FACEBOOK_PAGE_ID}}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.FACEBOOK_PAGE_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.button_url ? { recipient: { comment_id: $json.comment_id }, message: { attachment: { type: 'template', payload: { template_type: 'button', text: $json.selected_dm, buttons: [ { type: 'web_url', url: $json.button_url, title: $json.button_title } ] } } } } : { recipient: { comment_id: $json.comment_id }, message: { text: $json.selected_dm } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "e538f119-223e-4e85-be28-42ccfb49eae3",
+      "name": "Send Private Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2880,
+        704
+      ],
+      "onError": "continueErrorOutput",
+      "notes": "POST /{page-id}/messages with recipient.comment_id = Messenger private reply. Button template when button_url is set, plain text otherwise. One private reply per comment, within 7 days. Output 0 = success, output 1 = error."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// La sortie HTTP ne contient que la reponse Meta : on recupere le contexte via l'item apparie.\nconst base = $('Select Random DM').item.json;\nconst body = $json.body || {};\nreturn { json: { ...base, dm_status: 'sent', dm_message_id: body.message_id || null } };"
+      },
+      "id": "d2d3d07e-6b14-48d7-84a5-41c00929d781",
+      "name": "Record DM Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE fb_processed_comments\nSET matched_rule = $2, selected_dm = $3, dm_status = 'sent'\nWHERE comment_id = $1\nRETURNING comment_id, username, matched_rule, selected_dm, dm_status;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.matched_rule, $json.selected_dm] }}"
+        }
+      },
+      "id": "83bc1381-2bab-4fb4-8635-5aa8967ed425",
+      "name": "Update Row - DM Sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3360,
+        608
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "RETURNING passes comment_id downstream to the public reply branch."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// La sortie d'erreur HTTP ne contient que l'erreur : on recupere le contexte via l'item apparie.\nconst base = $('Select Random DM').item.json;\nconst err = $json.error || {};\n// The exact shape of the error object can vary by n8n version - verify during testing.\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = $runIndex + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...base,\n    dm_attempt: attempt,\n    dm_status_code: statusCode || null,\n    dm_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    dm_can_retry: canRetry,\n    dm_wait_seconds: waitSeconds,\n  },\n};"
+      },
+      "id": "57f8b97f-7fcd-463d-876d-bf6e610b25c1",
+      "name": "Classify DM Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.dm_can_retry}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "b3ec7073-b0ee-4db3-9bcc-459666670963",
+      "name": "Retry DM?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3360,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{$json.dm_wait_seconds}}"
+      },
+      "id": "31da0654-8d59-4b08-9d02-0eb38a04ab18",
+      "name": "Wait Before DM Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3600,
+        768
+      ],
+      "webhookId": "73c57949-ea69-4c2b-94e4-5e1a414dff82"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, dm_status: 'failed' } };"
+      },
+      "id": "cc3e3a18-2ffe-4d38-ad71-1ac2e6dc2b37",
+      "name": "Mark DM Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE fb_processed_comments\nSET matched_rule = $2, dm_status = 'failed', public_reply_status = 'skipped', status = 'error', error_message = $3, processed_at = now()\nWHERE comment_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.matched_rule, $json.dm_error_message] }}"
+        }
+      },
+      "id": "6f68cb05-54bd-408d-8db3-cc1e115fb5d1",
+      "name": "Update Row - DM Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3840,
+        928
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Status: DM echoue - reponse publique volontairement non envoyee."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// EDIT HERE: add / remove / reword public replies. One is chosen at random for each comment.\nconst publicReplies = [\n  'Merci pour ton commentaire 🙌 Je viens de t’envoyer un message privé.',\n  'C’est envoyé en message privé 📩',\n  'Merci ! Regarde tes messages privés 👋',\n  'Je viens de t’envoyer les informations en privé ✅',\n  'Les informations viennent de partir en DM 🚀',\n];\nreturn { json: { ...$json, publicReplies } };"
+      },
+      "id": "75aa6f25-5ccd-4d03-9e4d-750fc90b095d",
+      "name": "Public Replies Configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        608
+      ],
+      "notes": "EDIT ME: the list of possible public replies lives only here."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const list = $json.publicReplies; return { json: { ...$json, selected_public_reply: list[Math.floor(Math.random() * list.length)] } };"
+      },
+      "id": "00a5df2a-e57d-44e9-9e3b-9fb1416d786c",
+      "name": "Select Random Public Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3840,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v26.0/{{$json.comment_id}}/comments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.FACEBOOK_PAGE_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { message: $json.selected_public_reply } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "587ceb01-db89-4a40-9c51-ef46a7e37c2d",
+      "name": "Reply to Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4080,
+        608
+      ],
+      "onError": "continueErrorOutput",
+      "notes": "POST /{comment-id}/comments - public reply under the comment. Only runs once the private reply has succeeded. Output 0 = success, output 1 = error."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const base = $('Select Random Public Reply').item.json;\nreturn { json: { ...base, public_reply_status: 'sent' } };"
+      },
+      "id": "b407da54-f57c-4528-81fb-78e1251cda6b",
+      "name": "Record Public Reply Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE fb_processed_comments\nSET selected_public_reply = $2, public_reply_status = 'sent', status = 'done', processed_at = now()\nWHERE comment_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.selected_public_reply] }}"
+        }
+      },
+      "id": "845b68b7-ca37-492e-896c-8a8d0d56edc1",
+      "name": "Save Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4560,
+        512
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Status: DM envoye, reponse publique envoyee."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const base = $('Select Random Public Reply').item.json;\nconst err = $json.error || {};\nconst statusCode = Number(\n  err.httpCode || err.statusCode || err.status ||\n  (err.cause && (err.cause.httpCode || err.cause.statusCode)) || 0\n);\nconst headers = err.headers || (err.cause && err.cause.headers) || {};\nconst retryAfterHeader = headers['retry-after'] || headers['Retry-After'];\nconst attempt = $runIndex + 1;\nconst maxAttempts = 3;\nconst permanent = [400, 401, 403].includes(statusCode);\nconst transient = [429, 500, 502, 503, 504].includes(statusCode);\nconst canRetry = !permanent && transient && attempt < maxAttempts;\nconst waitSeconds = retryAfterHeader ? Number(retryAfterHeader) : Math.pow(2, attempt);\nreturn {\n  json: {\n    ...base,\n    pr_attempt: attempt,\n    pr_status_code: statusCode || null,\n    pr_error_message: (err.message || JSON.stringify(err)).toString().slice(0, 500),\n    pr_can_retry: canRetry,\n    pr_wait_seconds: waitSeconds,\n  },\n};"
+      },
+      "id": "d4dfbc7a-fd3c-4e53-8cfe-6a8037ee8f6c",
+      "name": "Classify Public Reply Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{$json.pr_can_retry}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "4ff15183-f693-4fcb-a79b-6c2d1da2ba58",
+      "name": "Retry Public Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4560,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{$json.pr_wait_seconds}}"
+      },
+      "id": "b54a7bb4-be45-4556-9002-9ab61517afe9",
+      "name": "Wait Before Public Reply Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4800,
+        672
+      ],
+      "webhookId": "1e93082e-0226-4b86-bd45-6a6d4702e0bf"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, public_reply_status: 'failed' } };"
+      },
+      "id": "d7aec9e7-647a-46b6-8ce8-5aa682a5d346",
+      "name": "Mark Public Reply Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4800,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE fb_processed_comments\nSET public_reply_status = 'failed', status = 'error', error_message = $2, processed_at = now()\nWHERE comment_id = $1;",
+        "options": {
+          "queryReplacement": "={{ [$json.comment_id, $json.pr_error_message] }}"
+        }
+      },
+      "id": "0a01c0db-73df-491a-8ba4-28e6cfb8f74d",
+      "name": "Update Row - Public Reply Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        5040,
+        832
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "yqBRyV14fz14mc2t",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Status: DM envoye, reponse publique echouee. Utiliser le workflow \"Retry Failed Public Replies\" pour reessayer uniquement cette etape."
+    },
+    {
+      "parameters": {},
+      "id": "ffa28e07-9f8f-4135-a7d5-637fd75e56b8",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        5280,
+        928
+      ],
+      "notes": "Single terminal node for all error branches - makes failed executions easy to spot in the n8n Executions list."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.matched_rule }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "id": "c73ec1c8-b748-4295-b7c9-bfb3e4220f9c",
+      "name": "Keyword Matched?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2400,
+        704
+      ],
+      "notes": "Continue only if the comment contains a keyword from Message Rules Configuration. Otherwise: no DM, no public reply."
+    },
+    {
+      "parameters": {},
+      "id": "38fae4e9-3099-4fb6-beb2-55d2439ee488",
+      "name": "Ignore - No Keyword",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        864
+      ],
+      "notes": "Status: comment ignored (no keyword from the rules list)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v26.0/{{$json.comment_id}}/likes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.FACEBOOK_PAGE_ACCESS_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "82949a6a-e053-4d6c-b15e-0d05ef7f11a2",
+      "name": "Like Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        484
+      ],
+      "onError": "continueRegularOutput",
+      "notes": "POST /{comment-id}/likes - the Page likes the comment (needs pages_manage_engagement). A failure here never blocks the DM. Disable this node to stop liking."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Verify Meta Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified?": {
+      "main": [
+        [
+          {
+            "node": "Respond OK - Return Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Comment Events": {
+      "main": [
+        [
+          {
+            "node": "Validate Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Event": {
+      "main": [
+        [
+          {
+            "node": "Ignore Own Comments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore - Invalid Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ignore Own Comments": {
+      "main": [
+        [
+          {
+            "node": "Reserve Comment (Atomic)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore - Own Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Comment (Atomic)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Comment Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Comment Text": {
+      "main": [
+        [
+          {
+            "node": "Message Rules Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Rules Configuration": {
+      "main": [
+        [
+          {
+            "node": "Match Keyword Rule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Keyword Rule": {
+      "main": [
+        [
+          {
+            "node": "Keyword Matched?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Random DM": {
+      "main": [
+        [
+          {
+            "node": "Send Private Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Private Reply": {
+      "main": [
+        [
+          {
+            "node": "Record DM Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classify DM Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record DM Success": {
+      "main": [
+        [
+          {
+            "node": "Update Row - DM Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Row - DM Sent": {
+      "main": [
+        [
+          {
+            "node": "Public Replies Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify DM Error": {
+      "main": [
+        [
+          {
+            "node": "Retry DM?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry DM?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before DM Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark DM Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before DM Retry": {
+      "main": [
+        [
+          {
+            "node": "Send Private Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark DM Failed": {
+      "main": [
+        [
+          {
+            "node": "Update Row - DM Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Row - DM Failed": {
+      "main": [
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Public Replies Configuration": {
+      "main": [
+        [
+          {
+            "node": "Select Random Public Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Random Public Reply": {
+      "main": [
+        [
+          {
+            "node": "Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to Comment": {
+      "main": [
+        [
+          {
+            "node": "Record Public Reply Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classify Public Reply Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Public Reply Success": {
+      "main": [
+        [
+          {
+            "node": "Save Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Public Reply Error": {
+      "main": [
+        [
+          {
+            "node": "Retry Public Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Public Reply?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Public Reply Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Public Reply Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Public Reply Retry": {
+      "main": [
+        [
+          {
+            "node": "Reply to Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Public Reply Failed": {
+      "main": [
+        [
+          {
+            "node": "Update Row - Public Reply Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Row - Public Reply Failed": {
+      "main": [
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keyword Matched?": {
+      "main": [
+        [
+          {
+            "node": "Select Random DM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Like Comment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignore - No Keyword",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Webhook Verify (GET)": {
+      "main": [
+        [
+          {
+            "node": "Verify Meta Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Webhook Events (POST)": {
+      "main": [
+        [
+          {
+            "node": "Extract Comment Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
